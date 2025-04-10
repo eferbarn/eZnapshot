@@ -1,0 +1,125 @@
+name: Auto Snapshot Generator
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "0 0,6,12,18 * * *"
+
+jobs:
+  generate-snapshot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Load config interval
+        id: config
+        run: |
+          CONFIG_FILE=config.json
+          if [ -f "$CONFIG_FILE" ]; then
+            INTERVAL=$(jq -r '.interval_cron' $CONFIG_FILE)
+            if [ "$INTERVAL" == "null" ] || [ -z "$INTERVAL" ]; then
+              INTERVAL="0 0,6,12,18 * * *"
+            fi
+          else
+            INTERVAL="0 0,6,12,18 * * *"
+          fi
+          echo "interval_cron=$INTERVAL" >> $GITHUB_ENV
+
+      - name: Check for [Auto] commit
+        id: skip_auto
+        run: |
+          LAST_COMMIT=$(git log -1 --pretty=%B)
+          echo "Last commit message: $LAST_COMMIT"
+          if echo "$LAST_COMMIT" | grep -q '\[Auto\]'; then
+            echo "🛑 Skipping due to auto commit"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate timestamp
+        id: timestamp
+        run: echo "now=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+
+      - name: Override cron if needed
+        uses: peter-evans/create-or-update-comment@v2
+        if: github.event_name == 'schedule'
+        with:
+          issue-number: 4
+          body: "⏱️ Running scheduled snapshot job at ${{ steps.timestamp.outputs.now }}, ZEROFOREVER!"
+          token: ${{ secrets.REPO_PAT }}
+
+      - name: Run Snapshot Script
+        if: (steps.skip_auto.outputs.skip != 'true' && github.event_name == 'push') || github.event_name == 'schedule'
+        run: |
+          python main.py || { echo 'main.py failed'; exit 1; }
+          python dashboard.py || { echo 'dashboard.py failed'; exit 1; }
+
+      - name: Debug Git Status Before Commit
+        run: |
+          echo "📁 Current path: $(pwd)"
+          ls -la
+          echo "🔍 Git status:"
+          git status
+          echo "🔍 Untracked files:"
+          git ls-files --others --exclude-standard
+
+      - name: Setup GPG and Commit
+        if: (steps.skip_auto.outputs.skip != 'true' && github.event_name == 'push') || github.event_name == 'schedule'
+        env:
+          PERSONAL_TOKEN: ${{ secrets.GH_COMMIT_PAT }}
+          GIT_USER_NAME: ${{ secrets.GIT_USER_NAME }}
+          GIT_USER_EMAIL: ${{ secrets.GIT_USER_EMAIL }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          echo "🔐 Configuring GPG"
+          mkdir -p ~/.gnupg
+          chmod 700 ~/.gnupg
+          echo "use-agent" > ~/.gnupg/gpg.conf
+          echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
+          echo "allow-loopback-pinentry" > ~/.gnupg/gpg-agent.conf
+          echo "default-cache-ttl 600" >> ~/.gnupg/gpg-agent.conf
+          echo "max-cache-ttl 7200" >> ~/.gnupg/gpg-agent.conf
+          gpgconf --kill gpg-agent
+          gpgconf --launch gpg-agent
+
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --yes --import
+
+          echo "$GPG_PASSPHRASE" | gpg --batch --yes --passphrase-fd 0 --pinentry-mode loopback \
+              --output /dev/null --sign /dev/null
+
+          git config user.name "$GIT_USER_NAME"
+          git config user.email "$GIT_USER_EMAIL"
+          git config --global user.signingkey "$GPG_KEY_ID"
+          git config --global commit.gpgsign true
+          git config --global gpg.program gpg
+
+          git remote set-url origin https://$GIT_USER_NAME:$PERSONAL_TOKEN@github.com/${{ github.repository }}
+          git fetch --unshallow || true
+          git add --all
+
+          if git diff --cached --quiet; then
+            echo "🟢 No changes to commit."
+          else
+            echo "✅ Committing with verified signature"
+            git commit -S -m "[Auto] Verified Commit - ${{ steps.timestamp.outputs.now }}"
+            git push origin HEAD
+          fi
