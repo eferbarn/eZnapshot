@@ -40,7 +40,7 @@ In this section, you need to enter your desired tokens based on the standard pro
 Before you do anything, look at this to help you understand the automation concept more easily.
 https://github.com/AgentZERRO/Znapshot/actions
 
-Now, you can skip this step if you don't need automation. However, if you do, modify the `AutoSnapshot.yml`([AutoSnapshot.yml](AutoSnapshot.yml)) and `Config.json`([Config.json](Config.json)) files according to your specific requirements.
+Now, you can skip this step if you don't need automation. However, if you do, modify the `AutoSnapshot.yml`([AutoSnapshot.yml](.github/workflows/AutoSnapshot.yml.example)) and `Config.json`([Config.json](config.json)) files according to your specific requirements.
 ```shell
 mv .github/workflows/AutoSnapshot.yml.example .github/workflows/AutoSnapshot.yml
 ```
