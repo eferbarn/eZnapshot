@@ -5,9 +5,12 @@ This automated snapshot taker uses Caldera/Blockscout API and GitHub workflow (C
 
 ---
 
-## 1. Cloning the repo 🪣
+## 0. Fork this repo 🍴
+Don't forget to fork this repo to build your automated snapshot taker!
+
+## 1. Clone your forked repo 🪣
 ```shell
-git clone git clone https://github.com/eferbarn/eZnapshot
+git clone https://github.com/{username}/{forked_repo}
 ```
 
 ## 2. Make your desired customizations 🖌️
@@ -79,6 +82,11 @@ This will build you a directory like what you see [here: AgentZERRO/Znapshot](ht
 5. [Statistics.json](https://github.com/AgentZERRO/Znapshot/blob/main/Statistics.json): A small file that holds general statistical information
 6. [Top 10 holders chart](https://github.com/AgentZERRO/Znapshot/blob/main/top_10_holders_chart.png)
 
+## 5. Syncing time ✅
+Now, sync all your changes between your local and remote repos!
+```shell
+git push origin main
+```
 ---
 [![MΞHDI ⧗](https://img.shields.io/badge/M%CE%9EHDI-Zerion-darkblue)](https://link.zerion.io/)
 ---
