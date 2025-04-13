@@ -1,6 +1,10 @@
 # eZnapshot 🥷🏻🎒
 ## **A Serverless approach to take periodic snapshots of your NFT holders (Loyal users)**
 
+Made with ❤️ by AgentZERRO
+
+![Banner](https://raw.githubusercontent.com/AgentZERRO/Znapshot/main/Assets/Banner.png)
+
 This automated snapshot taker uses Caldera/Blockscout API and GitHub workflow (Currently exclusive for ZERѲ network)
 
 ---
